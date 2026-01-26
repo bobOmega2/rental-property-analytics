@@ -1,0 +1,11 @@
+# Environment variables (contains credentials)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
