@@ -96,3 +96,102 @@ I chose to design the schema before looking at any data. Since I know the domain
 - [ ] Begin writing analysis queries
 
 ---
+
+## February 17, 2026 - SQLTools Setup, Schema Deployed, Data Strategy
+
+### What I Did Today
+- Reinstalled Python packages on new computer (`psycopg2-binary`, `python-dotenv`, `pandas`, `matplotlib`)
+- Configured SQLTools extension in VS Code and connected to Supabase
+- Deployed schema to Supabase — all 6 tables confirmed created in the `public` schema
+- Decided on a dual-environment data strategy (mock data for portfolio, real data locally)
+
+### SQLTools Configuration
+
+The key issues I ran into and solved:
+
+**1. IPv4 vs IPv6 — why Direct Connection didn't work**
+Supabase's Direct Connection (`db.[project].supabase.co:5432`) is IPv6 only on the free tier. My laptop is on an IPv4 network (most home/university networks are). IPv4 and IPv6 are two different addressing systems — IPv4 is the old standard (addresses like `192.168.1.1`), IPv6 is the newer one (long colon-separated strings). Supabase doesn't assign free-tier projects an IPv4 address for direct connections because IPv4 addresses are now scarce and expensive.
+
+**Solution: Session Pooler**
+The Session Pooler (`aws-1-us-east-2.pooler.supabase.com:5432`) has an IPv4 address. I connect to it over IPv4, and it connects to the database internally over IPv6. I never touch IPv6 directly. Supabase explicitly recommends this for IPv4 networks.
+
+**Session vs Transaction Pooler:**
+- Session Pooler: you hold one connection for your entire session — behaves like a direct connection, supports all SQL features. Right choice for interactive tools like SQLTools.
+- Transaction Pooler: connection is only held during a single transaction, then released. Designed for high-traffic web apps with hundreds of concurrent users. Has SQL limitations (no session-level settings, no temp tables that persist). Not needed for a single-user analytics project.
+
+**2. SSL — rejectUnauthorized**
+Supabase requires SSL (encrypted connections). SQLTools defaults to `rejectUnauthorized: true`, which means it only accepts certificates signed by a trusted certificate authority (CA). Supabase uses a self-signed certificate, which isn't on that list, so the connection was rejected with "self signed certificate in certificate chain."
+
+**Solution:** Unchecked `rejectUnauthorized` in SQLTools SSL options. The connection is still encrypted — I'm just skipping certificate authority verification. Safe for a known, trusted service like Supabase on a private network.
+
+**3. Verifying the connection worked**
+```sql
+SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
+```
+`information_schema` is PostgreSQL's built-in metadata directory — it stores data *about* the database (table names, column types, constraints, etc.). Filtering by `table_schema = 'public'` shows only my tables, not Supabase's internal schemas (`auth`, `storage`, `realtime`, etc.).
+
+### Data Strategy Decision
+
+**The problem:** I want real numbers on my resume but don't want to put sensitive tenant data on GitHub.
+
+**Decision: Two environments**
+
+| Environment | Data | Purpose |
+|---|---|---|
+| Supabase (cloud) | Realistic mock data | Public portfolio on GitHub |
+| Local PostgreSQL (future) | Real property data | Actual analysis, private |
+
+**Why local for real data:**
+Real tenant data (names, payment history, contact info) is sensitive personal/financial information. Keeping it off the cloud entirely is the responsible choice — no third-party breach risk, no internet exposure. The `.env` file already makes this easy to swap: just change `DATABASE_URL` to point to `localhost` instead of Supabase.
+
+**Why mock data is fine for the portfolio:**
+The resume bullet is about what I built and what I found, not the raw numbers. Interviewers care about schema design, query complexity, and insight quality — not whether the data was real. The mock data will be designed to have realistic patterns (late payments, vacancies, expense spikes) so the analysis is meaningful.
+
+**Resume framing:**
+- On the resume: describe what the system does and what insights it surfaces
+- In the GitHub README: one line noting it uses representative mock data
+- In interviews: "modeled after a real property, real data kept locally for privacy reasons" — this actually demonstrates data privacy awareness, which is a plus
+
+**Environment-agnostic design:**
+The fact that the same schema, queries, and notebook work against both environments just by changing `DATABASE_URL` is itself worth mentioning in an interview — it shows I designed for portability from the start.
+
+### Technical Learnings
+- **IPv4 vs IPv6**: Two different internet addressing systems. IPv4 is running out of addresses; IPv6 is the replacement. Most consumer networks are still IPv4.
+- **Connection pooler as IPv4 bridge**: Pooler sits on a server with both IPv4 and IPv6. You connect to it over IPv4; it connects to the DB internally over IPv6.
+- **SSL/TLS**: Encrypts data in transit. `rejectUnauthorized` controls whether the server's certificate must be signed by a known certificate authority.
+- **DDL commands return no rows**: `CREATE TABLE`, `DROP TABLE` etc. modify structure — empty result in SQLTools means success, not failure.
+- **`information_schema`**: PostgreSQL's built-in metadata layer. Query it to inspect your own database structure programmatically.
+
+### Seed Data
+Generated and inserted realistic mock data:
+- 1 property, 8 units (rooms), 10 tenants (8 original + 2 replacements for turnover)
+- 205 payments across 26 months (Jan 2024 – Feb 2026)
+- Intentional patterns built in: Tyler Brooks (9 late payments), Sarah Chen (5 late), Michael Okafor (1 missed + early termination), 3-month vacancy on R5
+- Expenses: property tax (quarterly), insurance (annual), management fees (monthly), utilities, unit-specific repairs
+
+### Constraints Added
+After seeding, added additional constraints via `ALTER TABLE`:
+```sql
+ALTER TABLE tenants ADD CONSTRAINT uq_tenant_email UNIQUE (email);
+ALTER TABLE tenants ADD CONSTRAINT uq_tenant_phone UNIQUE (phone);
+ALTER TABLE properties ADD CONSTRAINT uq_property_address UNIQUE (address);
+ALTER TABLE leases ADD CONSTRAINT chk_deposit_positive CHECK (security_deposit IS NULL OR security_deposit >= 0);
+ALTER TABLE units ADD CONSTRAINT chk_sqft_positive CHECK (square_feet IS NULL OR square_feet > 0);
+ALTER TABLE properties ADD CONSTRAINT chk_postal_code_format CHECK (postal_code ~ '^[A-Z][0-9][A-Z] [0-9][A-Z][0-9]$');
+```
+
+Tested each constraint by running intentional bad inserts — all correctly threw errors. The important distinction: constraints that enforce *business rules* (no two tenants share an email/phone) are more meaningful than constraints purely for deduplication. Both goals are served here.
+
+**Note on re-seeding:** running `seed_data.sql` twice would duplicate all rows. Safe reset pattern:
+```sql
+TRUNCATE properties, units, tenants, leases, payments, expenses RESTART IDENTITY CASCADE;
+```
+`CASCADE` is required because child tables (payments, leases) have foreign keys pointing to parent tables — PostgreSQL won't truncate a parent while children still reference it.
+
+### Next Steps
+- [ ] Begin writing analysis queries (cash flow, payment delinquency, expense breakdown, vacancy)
+- [ ] Update schema.sql to include all new constraints so file stays source of truth
+- [ ] Build out Jupyter notebook with visualizations
+- [ ] (Later) Set up local PostgreSQL for real data
+
+---
