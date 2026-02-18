@@ -190,8 +190,80 @@ TRUNCATE properties, units, tenants, leases, payments, expenses RESTART IDENTITY
 
 ### Next Steps
 - [ ] Begin writing analysis queries (cash flow, payment delinquency, expense breakdown, vacancy)
-- [ ] Update schema.sql to include all new constraints so file stays source of truth
+- [x] Update schema.sql to include all new constraints so file stays source of truth
 - [ ] Build out Jupyter notebook with visualizations
+- [ ] (Later) Set up local PostgreSQL for real data
+
+---
+
+## February 18, 2026 - Schema v2, Accounting Design, Reseed
+
+### What I Did Today
+- Redesigned schema from 6 to 7 tables with accounting-correct additions
+- Rewrote schema.sql with all constraints inline (no more ALTER TABLE patches)
+- Rewrote seed_data.sql with new columns fully populated
+- Truncated database, redeployed schema, and reseeded — verified 205 payments, 59 expenses, 2 assets
+- Created design_decisions.md as a concise employer-facing record of key decisions
+
+### Schema Changes (v2)
+
+**New columns on `expenses`:**
+- `expense_class VARCHAR(10) CHECK (IN ('opex', 'capex'))` — the CRA T776 distinction between operating expenses (deducted in full) and capital expenditures (depreciated via CCA over years). Without this, the P&L is wrong any year with a major purchase.
+
+**New columns on `payments`:**
+- `payment_method` — e-transfer, cheque, cash, auto-debit. Audit trail and explains timing patterns (auto-debit tenants are always exactly on time; manual e-transfer tenants vary).
+- `late_fee_charged` / `late_fee_collected` — tracks the $50 late fee policy. Tyler Brooks: first 5 fees collected, last 4 waived. Sarah Chen: all 5 collected. `NULL` = no fee applicable.
+
+**New columns on `leases`:**
+- `deposit_returned_date`, `deposit_returned_amount`, `deposit_deductions`, `deposit_deduction_reason` — security deposits are a liability until returned. Michael Okafor's $850 deposit was fully withheld for his missed August 2024 rent. David Kim's $750 was returned in full June 2024.
+
+**New `assets` table:**
+- Tracks capital assets with CCA class, rate, acquisition cost, UCC basis for depreciation queries.
+- Two assets seeded: the building ($320,000, Class 1, 4%) and the R5 refrigerator ($680, Class 8, 20%, linked to expense_id 56).
+
+### Accounting Concepts Discussed
+
+**Why cash basis, not double-entry bookkeeping:**
+Double-entry (debits/credits) solves a bookkeeping problem — detecting errors via self-balancing ledgers. This is an analytics system: data comes in cleanly structured, not from manual entry. Adding a journal_entries table would make every query harder without adding analytical value. Cash basis is CRA-accepted for small landlords and is the right fit here.
+
+**Why no chart of account codes:**
+The `category` column on expenses already serves this purpose. Numeric codes (4100, 5200) are useful in bookkeeping software — they're cosmetic for SQL analytics where named categories are cleaner.
+
+**Why no separate income table:**
+`payments` IS the income ledger. Every rent payment is traceable to unit + tenant via leases. A separate income table would only matter if there were non-lease revenue sources (parking, coin laundry). Doesn't apply here.
+
+**Schema vs query — the rule:**
+- **Change the schema** when a fact about the world is missing entirely (OpEx vs CapEx — couldn't be inferred, needed a new column).
+- **Handle in a query** when the data exists but needs different shaping (allocating property tax across 8 units — the amount is there, the math goes in the query).
+
+**CCA classes (Canada):**
+- Class 1: 4% declining balance — the building
+- Class 8: 20% declining balance — appliances, equipment, furniture
+- Declining balance: each year's CCA is applied to remaining UCC, not original cost
+- Half-year rule: 50% of normal CCA in the year of acquisition
+- CCA cannot be used to create a rental loss (CRA rule)
+
+### Re-seed Process (for future reference)
+Since assets didn't exist before, TRUNCATE order matters:
+```sql
+-- If assets table exists:
+TRUNCATE assets, expenses, payments, leases, tenants, units, properties RESTART IDENTITY CASCADE;
+
+-- If assets table doesn't exist yet (first-time schema upgrade):
+TRUNCATE expenses, payments, leases, tenants, units, properties RESTART IDENTITY CASCADE;
+-- Then run schema.sql, then seed_data.sql
+```
+
+### Technical Learnings
+- **OpEx vs CapEx**: Operating expenses reduce taxable income in the current year. Capital expenditures create assets that are depreciated (CCA) over multiple years. The distinction is mandatory for accurate T776 reporting.
+- **CCA (Capital Cost Allowance)**: Canada's tax depreciation system. Each asset belongs to a class with a rate. Declining balance means you depreciate remaining book value (UCC), not original cost. Half-year rule reduces CCA by 50% in year of purchase.
+- **Security deposit as liability**: Money collected but owed back is a liability until resolved. The deposit lifecycle columns capture the full accounting event — receipt, deductions, and return.
+- **`FILTER` clause in PostgreSQL**: `COUNT(*) FILTER (WHERE condition)` is cleaner conditional aggregation than `CASE WHEN`. Useful for delinquency rates, payment breakdowns, etc.
+- **`DATE_TRUNC`**: Collapses timestamps to a period (month, year, quarter). Essential for time-series aggregation. Always use on both sides of a JOIN when comparing dates from different tables.
+
+### Next Steps
+- [ ] Write analysis queries in queries.sql (monthly cash flow first)
+- [ ] Copy queries into Jupyter notebook, run via psycopg2, visualize with Matplotlib
 - [ ] (Later) Set up local PostgreSQL for real data
 
 ---
