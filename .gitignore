@@ -1,6 +1,9 @@
 # Environment variables (contains credentials)
 .env
 
+# VS Code SQLTools config (contains database password)
+.vscode/settings.json
+
 # Python
 __pycache__/
 *.py[cod]
