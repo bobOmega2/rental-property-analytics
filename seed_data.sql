@@ -87,31 +87,26 @@ INSERT INTO leases (unit_id, tenant_id, start_date, end_date, monthly_rent, secu
 -- ============================================
 -- 5. PAYMENTS (205 rows)
 -- ============================================
--- Conventions:
---   on_time : payment_date = due_date + 1–2 days (or same day for auto-debit)
---   late    : payment_date = due_date + 7–12 days
---   missed  : payment_date = due_date + 2 days (date landlord logged the miss); amount = rent owed
+-- on_time: paid 1–2 days after the 1st (same day for auto-debit)
+-- late:    paid 7–12 days after the 1st
+-- missed:  logged 2 days after due date; amount = what was owed
 --
--- Payment methods:
---   James Wilson   (L1): e-transfer
---   Sarah Chen     (L2): e-transfer
---   Michael Okafor (L3): cheque
---   Emily Rodriguez(L4): auto-debit  ← explains consistent on-time payments
---   David Kim      (L5): e-transfer
---   Priya Patel    (L6): auto-debit  ← explains consistent on-time payments
---   Tyler Brooks   (L7): e-transfer  ← manual payment, explains frequent lateness
---   Aisha Mahmoud  (L8): e-transfer
---   Lucas Nguyen   (L9): e-transfer
---   Olivia Tremblay(L10): auto-debit ← explains consistent on-time payments
+-- Payment methods (explains the patterns):
+--   L1 James Wilson      e-transfer
+--   L2 Sarah Chen        e-transfer   — 5 late payments
+--   L3 Michael Okafor    cheque       — 1 missed payment
+--   L4 Emily Rodriguez   auto-debit   — always on time
+--   L5 David Kim         e-transfer   — 5 months then gone
+--   L6 Priya Patel       auto-debit   — always on time
+--   L7 Tyler Brooks      e-transfer   — 9 late payments
+--   L8 Aisha Mahmoud     e-transfer   — always on time
+--   L9 Lucas Nguyen      e-transfer   — always on time
+--   L10 Olivia Tremblay  auto-debit   — always on time
 --
--- Late fee policy: $50 charged on all late payments.
---   Tyler Brooks: first 5 late fees collected ($50 each), last 4 waived ($0 collected).
---   Sarah Chen: all 5 late fees collected ($50 each).
---   Missed payments: no late fee charged (different process — deposit/eviction track).
---   On-time payments: no fee (NULL).
---
--- Columns: lease_id, amount, payment_date, due_date, status,
---          payment_method, late_fee_charged, late_fee_collected
+-- Late fee policy: $50 charged per late payment.
+--   Sarah Chen: all 5 collected.
+--   Tyler Brooks: first 5 collected, last 4 waived.
+--   Missed payments: no fee (handled via deposit instead).
 
 INSERT INTO payments (lease_id, amount, payment_date, due_date, status, payment_method, late_fee_charged, late_fee_collected) VALUES
 
@@ -372,18 +367,10 @@ INSERT INTO payments (lease_id, amount, payment_date, due_date, status, payment_
 -- ============================================
 -- 6. EXPENSES
 -- ============================================
--- expense_class: 'opex' or 'capex' per CRA T776 definition.
--- All routine repairs, recurring fees, and periodic costs = opex (deduct in full this year).
--- Appliance/equipment replacements = capex (creates an asset; deduct via CCA over years).
---
--- Expense IDs in insertion order (used by assets table to link expense_id):
---   1–9:   property_tax (quarterly × 2 years + Q1 2026)
---   10–11: insurance (annual)
---   12–37: management (monthly, 26 months)
---   38–45: utilities (quarterly × 2 years)
---   46–51: property-wide maintenance (6 events)
---   52–59: unit-specific maintenance (8 events)
---   56 = refrigerator replacement R5 (capex) ← referenced in assets table
+-- opex = deduct in full this year. capex = creates an asset, depreciate via CCA.
+-- expense_id 56 (R5 refrigerator) is referenced in the assets table.
+-- IDs run 1–9 (property_tax), 10–11 (insurance), 12–37 (management),
+-- 38–45 (utilities), 46–51 (property-wide maintenance), 52–59 (unit-specific).
 
 INSERT INTO expenses (property_id, unit_id, category, expense_class, description, amount, expense_date) VALUES
 
@@ -464,20 +451,12 @@ INSERT INTO expenses (property_id, unit_id, category, expense_class, description
 -- ============================================
 -- 7. ASSETS
 -- ============================================
--- Two assets tracked:
---
--- 1. The building itself (CCA Class 1, 4% declining balance).
---    Acquired Sep 2019, before the tracking period — expense_id is NULL.
---    This is the largest asset. Annual CCA = 4% of UCC (half-year rule in first year).
---    Example: Year 1 UCC = $320,000. CCA = 4% × $320,000 × 50% = $6,400.
---
--- 2. Refrigerator in R5 (CCA Class 8, 20% declining balance).
---    Purchased Aug 2024, linked to expense_id = 56.
---    Year 1 (2024) CCA = 20% × $680 × 50% = $68 (half-year rule).
---    Year 2 (2025) CCA = 20% × ($680 - $68) = 20% × $612 = $122.40.
---
--- UCC (Undepreciated Capital Cost) = original cost minus all CCA claimed to date.
--- UCC is the tax book value, not the market value.
+-- Two assets: the building (Class 1, 4%) and the R5 fridge (Class 8, 20%).
+-- Building acquired Sep 2019 — before the tracking period, so expense_id is NULL.
+-- UCC (Undepreciated Capital Cost) = original cost minus all CCA claimed so far.
+-- Half-year rule applies in the year of acquisition: CCA × 50% in year 1.
+--   Building:  4% × $320,000 × 50% = $6,400 (year 1)
+--   Fridge:   20% × $680     × 50% = $68    (2024), 20% × $612 = $122.40 (2025)
 
 INSERT INTO assets (property_id, unit_id, expense_id, description, cca_class, cca_rate,
                     acquisition_date, acquisition_cost, salvage_value, disposal_date, disposal_amount) VALUES
