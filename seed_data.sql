@@ -465,3 +465,39 @@ INSERT INTO assets (property_id, unit_id, expense_id, description, cca_class, cc
 
 (1, 5, 56, 'Refrigerator - Room R5',
  'class_8', 0.2000, '2024-08-08', 680.00, 0.00, NULL, NULL);
+
+
+-- ============================================
+-- 8. MORTGAGE PAYMENTS (demo — $2,100/month, Jan 2024–Feb 2026)
+-- ============================================
+-- Mortgage is a cash outflow tracked here for P&L completeness.
+-- Note: only the interest portion is tax-deductible for CRA T776;
+-- principal repayment is not an expense. Tracked as 'opex' here
+-- for cash flow purposes only.
+INSERT INTO expenses (property_id, unit_id, category, expense_class, description, amount, expense_date) VALUES
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Jan 2024', 2100.00, '2024-01-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Feb 2024', 2100.00, '2024-02-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Mar 2024', 2100.00, '2024-03-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Apr 2024', 2100.00, '2024-04-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment May 2024', 2100.00, '2024-05-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Jun 2024', 2100.00, '2024-06-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Jul 2024', 2100.00, '2024-07-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Aug 2024', 2100.00, '2024-08-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Sep 2024', 2100.00, '2024-09-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Oct 2024', 2100.00, '2024-10-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Nov 2024', 2100.00, '2024-11-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Dec 2024', 2100.00, '2024-12-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Jan 2025', 2100.00, '2025-01-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Feb 2025', 2100.00, '2025-02-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Mar 2025', 2100.00, '2025-03-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Apr 2025', 2100.00, '2025-04-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment May 2025', 2100.00, '2025-05-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Jun 2025', 2100.00, '2025-06-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Jul 2025', 2100.00, '2025-07-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Aug 2025', 2100.00, '2025-08-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Sep 2025', 2100.00, '2025-09-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Oct 2025', 2100.00, '2025-10-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Nov 2025', 2100.00, '2025-11-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Dec 2025', 2100.00, '2025-12-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Jan 2026', 2100.00, '2026-01-01'),
+(1, NULL, 'mortgage', 'opex', 'Mortgage payment Feb 2026', 2100.00, '2026-02-01');

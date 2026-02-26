@@ -151,7 +151,7 @@ CREATE TABLE expenses (
     expense_id    SERIAL PRIMARY KEY,
     property_id   INT           NOT NULL REFERENCES properties(property_id),
     unit_id       INT           REFERENCES units(unit_id),
-    category      VARCHAR(30)   NOT NULL CHECK (category IN ('maintenance', 'utilities', 'insurance', 'property_tax', 'management', 'other')),
+    category      VARCHAR(30)   NOT NULL CHECK (category IN ('maintenance', 'utilities', 'insurance', 'property_tax', 'management', 'mortgage', 'other')),
     expense_class VARCHAR(10)   NOT NULL CHECK (expense_class IN ('opex', 'capex')),
     description   TEXT,
     amount        NUMERIC(10,2) NOT NULL CHECK (amount > 0),

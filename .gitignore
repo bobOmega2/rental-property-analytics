@@ -1,6 +1,11 @@
 # Environment variables (contains credentials)
 .env
 
+# Real data files (local only, never push)
+schema_real.sql
+seed_data_real.sql
+rental_analytics_real.ipynb
+
 # VS Code SQLTools config (contains database password)
 .vscode/settings.json
 
